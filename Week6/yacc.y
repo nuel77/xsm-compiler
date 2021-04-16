@@ -14,7 +14,7 @@
     struct tnode* Node;
 };
 
-%type <Node>  Body E Slist Stmt InputStmt OutputStmt AsgStmt Ifstmt Whilestmt Breakstmt Continuestmt 
+%type <Node>  Body E Slist Stmt InputStmt OutputStmt AsgStmt Returnstmt Ifstmt Whilestmt Breakstmt Continuestmt 
 %token NUM START  END  ASSIGN ID READ WRITE IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONTINUE REPEAT UNTIL  DECL ENDDECL INT STR STRING MAIN RETURN
 %token TYPE ENDTYPE INITIALIZE ALLOC FREE NIL
 %nonassoc LT GT LE GE NE EQ
@@ -29,7 +29,7 @@ program: TypeDefBlock GdeclBlock FDefBlock MainBlock {exit(0);}
 	|TypeDefBlock GdeclBlock MainBlock				{exit(0);}
 	|TypeDefBlock MainBlock							{exit(0);}
 ;
-TypeDefBlock: TYPE TypeDefList ENDTYPE				{printTypetable();}
+TypeDefBlock: TYPE TypeDefList ENDTYPE				{/*printTypetable();*/}
 ;
 TypeDefList: TypeDefList TypeDef
 	|TypeDef
@@ -103,7 +103,7 @@ Ftype: INT							{Ftype = TLookup("Integer");}
 	}
 ;
 Fdef: Ftype ID '(' ParamList ')' '{' LdeclBlock Body '}'	{funcdef(curr_type,$<Node>2, Phead,$<Node>8);
-														print_local_declarations(Lhead);
+														//print_local_declarations(Lhead);
 														Phead= NULL;
 														Lhead=NULL;
 														LOCAL_BIND=1;
@@ -111,6 +111,7 @@ Fdef: Ftype ID '(' ParamList ')' '{' LdeclBlock Body '}'	{funcdef(curr_type,$<No
 }
 ;
 MainBlock: INT MAIN '(' ')' '{' LdeclBlock Body '}'		{mainfuncdef($<Node>7);
+														//print_local_declarations(Lhead);
 														Lhead=NULL;
 														Phead=NULL;
 														LOCAL_BIND=1;
@@ -150,7 +151,7 @@ LDecList: LDecList LDecl
 	| LDecl;
 ;
 
-LDecl: Ptype IdList ';'
+LDecl: Type IdList ';'
 ;
 
 IdList: IdList ',' ID		{LInstall($<Node>3->varname, curr_type, _ID);}
@@ -159,7 +160,7 @@ IdList: IdList ',' ID		{LInstall($<Node>3->varname, curr_type, _ID);}
 	| MUL ID				{LInstall($<Node>2->varname, curr_type, _PTR);}
 ;
 
-Body: START Slist Returnstmt END		{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _CONNECTOR, $<Node>2,NULL,$<Node>3);}
+Body: START Slist Returnstmt  END		{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _CONNECTOR, $<Node>2,NULL,$<Node>3);}
 	|START END							{$<Node>$= NULL;}
 ;
 
@@ -174,7 +175,7 @@ Stmt : InputStmt ';'		{$<Node>$=$<Node>1;}
     | Whilestmt ';'         {$<Node>$=$<Node>1;}
     | Breakstmt  ';'        {$<Node>$=$<Node>1;}
     | Continuestmt ';'      {$<Node>$=$<Node>1;}
-	| Returnstmt ';'		{$<Node>$=$<Node>1;}
+	
 ;
 Field: ID '.' ID 	{
 	struct Fieldlist *Ftemp= FLookup($<Node>1->type, $<Node>3->varname);
@@ -182,7 +183,7 @@ Field: ID '.' ID 	{
 		printf("No field name %s in %s \n",$<Node>3->varname,$<Node>1->varname);
 		exit(0);
 	}
-	$<Node>$= createTree(VAL_NONE,  $<Node>3->type, "\0", _FIELD, $<Node>1,NULL, createTree(VAL_NONE,TLookup("void"),"\0",_FIELD,$<Node>3,NULL,NULL));
+	$<Node>$= createTree(VAL_NONE,  Ftemp->type, "\0", _FIELD, $<Node>1,NULL, createTree(VAL_NONE,TLookup("void"),"\0",_FIELD,$<Node>3,NULL,NULL));
 	}
 
 	|Field '.' ID	{
@@ -234,7 +235,7 @@ Continuestmt: CONTINUE                              {$<Node>$= createTree(VAL_NO
 Breakstmt: BREAK                                    {$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _BREAK, NULL, NULL, NULL);}
 ;
 
-Returnstmt: RETURN E 								{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _RET, $<Node>2, NULL, NULL);}
+Returnstmt: RETURN E ';'							{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _RET, $<Node>2, NULL, NULL);}
 ;
 
 ArgList: ArgList ',' E								{$<Node>$= createTree(VAL_NONE,TLookup("void"), "\0", _ARG,  $<Node>1, NULL, $<Node>3);}

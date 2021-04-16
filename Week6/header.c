@@ -377,21 +377,23 @@ char *printvartype(int nodetype){
 	else
 		return strdup("OTHER");
 }
-char *printType(struct Typetable *type){
-	return type->name;
-}
+
 void printFieldType(struct Typetable *type){
-	printf("Field Type : %s",type->name);
+	printf("Field Type : %s \n",type->name);
 }
 void printField(struct Fieldlist *temp){
     while(temp!=NULL){
         printFieldType(temp->type);
         printf("Field name : %s\n", temp->name);
         printf("Field Index : %d\n",temp->fieldIndex);
+        printf("Field type: %s\n",temp->type->name);
         temp=temp->next;
     }
 }
-
+char *printType(struct Typetable *type){
+   // 
+	return type->name;
+}
 void printTypetable(){
     struct Typetable * temp= Thead;
     while(temp!=NULL){
@@ -435,6 +437,7 @@ void print_local_declarations(struct Lsymbol* head){
         printf("name : %s,\n",curr->name);
         printf("binding: %d,\n",curr->binding);
         printf("type: %s,\n",printType(curr->type));
+        printField(curr->type->fields);
         printf("--------------------------------\n");
         curr=curr->next;
     }
@@ -473,8 +476,12 @@ int type_guard(struct tnode* t){
         case _LE:
         case _GT:
         case _LT:
-            if(t->left->type != TLookup("Integer") || t->right->type!= TLookup("Integer")){
+            if(t->right->type == TLookup("Type") && (t->left->type==TLookup("Integer") || t->left->type==TLookup("String"))){
                 yyerror("type mismatch : both should be boolean type\n");
+                exit(1);
+            }
+            if((t->right->type!=TLookup("Type") && ( t->left->type!=TLookup("Integer") || t->right->type!=TLookup("Integer")))){
+                yyerror("type mismatch : both operands must be integer (relational) \n");
                 exit(1);
             }
             break;
@@ -496,13 +503,23 @@ int type_guard(struct tnode* t){
                 exit(1);
             }
             break;
+
         case _ASSIGN:
-            
-            if(t->left->type!=t->right->type){
-                yyerror("type mismatch: assign types not same!\n");
+            //printf("type print: %s varname: %s\n",t->right->type->name, t->right->varname);
+           // printf("type print: %s varname: %s\n",t->left->type->name, t->left->varname);
+           
+            if( t->right->type==TLookup("Type") && ( ( t->left->type==TLookup("Integer") ) || ( t->left->type==TLookup("String") ) )){
+                yyerror("type mismatch: user defined type (asssignment)!\n");
+                exit(1);
+            }
+            else if(t->right->type!=TLookup("Type") && (t->left->type != t->right->type) ){
+                printf("type right: %s varname: %s\n",t->right->type->name, t->right->varname);
+                printf("type left : %s varname: %s\n",t->left->type->name, t->left->varname);
+                yyerror("type mismatch: both operands must be integers (assignment)\n");
                 exit(1);
             }
             break;
+
         case _ASGN_ARRAY:
             if(t->mid->type!= TLookup("Integer")){
                 yyerror("array index must be type integer!");
