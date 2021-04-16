@@ -222,7 +222,7 @@ int codeGen(struct tnode* t){
 			break;
 
         case _INIT :
-			x = getReg();
+			x = get_register();
 			fprintf(target_file, "MOV R%d, \"Heapset\"\n", x);
 			fprintf(target_file, "PUSH R%d\n", x);
 			fprintf(target_file, "PUSH R%d\n", x);
@@ -240,8 +240,8 @@ int codeGen(struct tnode* t){
 			break;
 
 		case _ALLOC :
-			x = getReg();
-			y = getReg();
+			x = get_register();
+			y = get_register();
 			fprintf(target_file, "MOV R%d, \"Alloc\"\n", y);
 			fprintf(target_file, "PUSH R%d\n", y);
 			fprintf(target_file, "PUSH R%d\n", y);
@@ -254,13 +254,13 @@ int codeGen(struct tnode* t){
 			fprintf(target_file, "POP R%d\n", y);
 			fprintf(target_file, "POP R%d\n", y);
 			fprintf(target_file, "POP R%d\n", y);
-			freeReg();
+			free_register();
 			return x;
 			break;
 
 		case _FREE :
 			x = codeGen(t->left);
-			y = getReg();
+			y = get_register();
 			fprintf(target_file, "MOV R%d, \"Free\"\n", y);
 			fprintf(target_file, "PUSH R%d\n", y);
 			fprintf(target_file, "PUSH R%d\n", x);
@@ -273,13 +273,13 @@ int codeGen(struct tnode* t){
 			fprintf(target_file, "POP R%d\n", y);
 			fprintf(target_file, "POP R%d\n", y);
 			fprintf(target_file, "POP R%d\n", y);
-			freeReg();
-			freeReg();
+			free_register();
+			free_register();
 			return -1;
 			break;
 
 		case _NULL:
-			x = getReg();
+			x = get_register();
 			fprintf(target_file, "MOV R%d, -1\n", x);
 			return x;
 
@@ -333,42 +333,37 @@ int codeGen(struct tnode* t){
         case _ASGN_PTR_ADDR:break;
         case _ASSIGN_FIELD:
 			x = codeGen(t->right);
-			y = getReg();
+			y = get_register();
 
 			Ltemp=LLookup(t->left->left->varname);
 			Ptemp=PLookup(t->left->left->varname);
 			Gtemp=GLookup(t->left->left->varname);
 
-			if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) )
-			{
+			if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
 				printf("Unknown variable: %s\n", t->left->varname);
 				exit(1);
 			}
 
-			if(Ltemp!=NULL)
-			{
+			if(Ltemp!=NULL){
 				Ttemp=Ltemp->type;
 				fprintf(target_file, "MOV R%d, BP\n", y);
 				fprintf(target_file, "ADD R%d, %d\n", y, Ltemp->binding);
 				fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
 			}
-			else if(Ptemp!=NULL)
-			{
+			else if(Ptemp!=NULL){
 				Ttemp=Ptemp->type;
 				fprintf(target_file, "MOV R%d, BP\n", y);
 				fprintf(target_file, "SUB R%d, %d\n", y, Ptemp->binding+2);
 				fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
 			}
-			else if(Gtemp!=NULL)
-			{
-					Ttemp=Gtemp->type;
-					fprintf(target_file, "MOV R%d, [%d]\n", y,Gtemp->binding);
+			else if(Gtemp!=NULL){
+				Ttemp=Gtemp->type;
+				fprintf(target_file, "MOV R%d, [%d]\n", y,Gtemp->binding);
 			}
 
 			p=t->left;
 
-			while(p->right->right!=NULL)
-			{
+			while(p->right->right!=NULL){
 				Ftemp=FLookup(Ttemp,p->right->left->varname);
 				if(Ftemp==NULL)
 				{
@@ -383,16 +378,15 @@ int codeGen(struct tnode* t){
 			}
 
 			Ftemp=FLookup(Ttemp,p->right->left->varname);
-			if(Ftemp==NULL)
-			{
+			if(Ftemp==NULL){
 				printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
 				exit(1);
 			}
 			fprintf(target_file, "ADD R%d, %d\n",y,Ftemp->fieldIndex);
 			fprintf(target_file, "MOV [R%d], R%d\n", y,x);
 
-			freeReg();
-			freeReg();
+			free_register();
+			free_register();
 			return -1;
             
         case _PLUS:
@@ -539,7 +533,7 @@ int codeGen(struct tnode* t){
 			Ptemp=PLookup(t->left->left->varname);
 			Gtemp=GLookup(t->left->left->varname);
 
-			x=getReg();
+			x=get_register();
 
 			if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
 				printf("Unknown variable: %s\n", t->left->varname);
@@ -586,7 +580,7 @@ int codeGen(struct tnode* t){
 			}
 			fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
 
-			y = getReg();
+			y = get_register();
 			fprintf(target_file,"MOV R%d, \"Read\"\n",y);
 			fprintf(target_file,"PUSH R%d\n",y);
 			fprintf(target_file,"MOV R%d, -1\n",y);
@@ -601,8 +595,8 @@ int codeGen(struct tnode* t){
 			fprintf(target_file,"POP R%d\n",y);
 			fprintf(target_file,"POP R%d\n",y);
 			fprintf(target_file,"POP R%d\n",y);
-			freeReg();
-			freeReg();
+			free_register();
+			free_register();
 			return -1;
 		case _WRITE:
 			l = codeGen(t->left);
