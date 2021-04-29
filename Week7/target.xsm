@@ -1,0 +1,13 @@
+0
+2056
+0
+0
+0
+0
+0
+0
+JMP L0
+F0:
+PUSH BP
+MOV BP, SP
+ADD SP, 0
