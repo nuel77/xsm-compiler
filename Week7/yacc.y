@@ -3,7 +3,7 @@
 	#include <stdlib.h>
 	#include <ctype.h>
 	#include <string.h>
-	int yyerror(char const *); 
+	int yyerror(char const *);   
 	extern FILE* yyin;
 	#include "codegen.c"
 	int yylex(void);
@@ -33,6 +33,7 @@ program: TypeDefBlock ClassDefBlock GdeclBlock FDefBlock MainBlock  {exit(0);}
 	|TypeDefBlock ClassDefBlock										{exit(0);}
 ;
 TypeDefBlock: TYPE TypeDefList ENDTYPE				{/*printTypetable();*/}
+		|
 ;
 TypeDefList: TypeDefList TypeDef
 	|TypeDef
@@ -63,7 +64,10 @@ GdeclBlock: DECL GDecllist ENDDECL  {
 									LOCAL_BIND=1;
 									PARAM_BIND=1;
                             		}
-	|DECL ENDDECL					{initialxsmcode();}
+	|DECL ENDDECL					{initialxsmcode();
+									LOCAL_BIND=1;
+									PARAM_BIND=1;
+									}
 ;
 
 GDecllist: GDecllist GDec1
@@ -96,6 +100,7 @@ ClassDefBlock: CLASS ClassDefList ENDCLASS{
 		//printClasstable();
 		struct Classtable *Ctemp= Chead;
 		struct Memberfunclist *Mtemp;
+		//store all methods of the class into the start of stack
 		fprintf(target_file,"L%d:\n", START_FUNC);
 		fprintf(target_file, "MOV SP, 4095\n");
 		
@@ -356,7 +361,7 @@ FieldFunction: ID '.' ID '(' ArgList ')' {
 			printf("no method called %s in class %s",$<Node>3->varname,Class->name);
 			exit(0);
 		}
-		$<Node>$= createTree(VAL_NONE,Mtemp->type,"\0",_METHOD2,$<Node>3,NULL,$<Node>5);
+		$<Node>$= createTree(VAL_NONE,Mtemp->type,Class->name,_METHOD2,$<Node>3,NULL,$<Node>5);
 	}
 	
 	| Field '.' ID '(' ArgList ')' {
@@ -381,7 +386,7 @@ AsgStmt: ID ASSIGN E            	{$<Node>$=  createTree(VAL_NONE, TLookup("void"
 	| ID '[' E ']' ASSIGN E			{$<Node>$ = createTree(VAL_NONE, TLookup("void"), "\0", _ASGN_ARRAY,$<Node>1, $<Node>3, $<Node>6);}
 	| ID ASSIGN INITIALIZE '(' ')'	{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Integer"),"\0",_INIT,NULL,NULL,NULL));}
 	| ID ASSIGN ALLOC '(' ')'		{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
-	| Field ASSIGN E				{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL,$3);}
+	| Field ASSIGN E				{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL,$<Node>3);}
 	| Field ASSIGN ALLOC '(' ')'	{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
 	| FREE '(' ID ')'				{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
 	| FREE '(' Field ')'			{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}

@@ -10,7 +10,7 @@ int codeGen(struct tnode* t){
     struct Memberfunclist *Mtemp;
 	struct Classtable *Ctemp;
 
-    if(t== NULL) return -1;
+    if(t== NULL) return -2;
 
     switch(t->nodetype){
         case _NUM:
@@ -57,7 +57,7 @@ int codeGen(struct tnode* t){
             return reg1;
 
         case _FIELD:
-            reg1= get_register();
+            x= get_register();
             //check if its a has self type.
             if(strcmp(t->varname,"\0")!=0){
                 z=3;
@@ -66,9 +66,9 @@ int codeGen(struct tnode* t){
                     z++;
                     Ptemp=Ptemp->next;
                 }
-                fprintf(target_file, "MOV R%d, BP\n", reg1);
-				fprintf(target_file, "SUB R%d, %d\n", reg1, z+1);
-				fprintf(target_file, "MOV R%d, [R%d]\n", reg1, reg1);
+                fprintf(target_file, "MOV R%d, BP\n", x);
+				fprintf(target_file, "SUB R%d, %d\n", x, z+1);
+				fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
 
                 //get self class.
                 Ctemp=Clookup(t->varname);
@@ -81,8 +81,8 @@ int codeGen(struct tnode* t){
                     }
                     Ftemp= Ftemp->next;
                 }
-                fprintf(target_file, "ADD R%d, %d\n", reg1, z);
-				fprintf(target_file, "MOV R%d, [R%d]\n", reg1, reg1);
+                fprintf(target_file, "ADD R%d, %d\n", x, z);
+				fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
 
                 Ttemp= Ftemp->type;
                 p=t->right;
@@ -108,19 +108,19 @@ int codeGen(struct tnode* t){
                 }
                 if(Ltemp!=NULL){
                     Ttemp=Ltemp->type;
-                    fprintf(target_file,"MOV R%d, BP\n",reg1);
-                    fprintf(target_file, "ADD R%d, %d\n", reg1, Ltemp->binding);
-                    fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
+                    fprintf(target_file,"MOV R%d, BP\n",x);
+                    fprintf(target_file, "ADD R%d, %d\n", x, Ltemp->binding);
+                    fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
                 }
                 else if(Ptemp!=NULL){
                     Ttemp=Ptemp->type;
-                    fprintf(target_file, "MOV R%d, BP\n", reg1);
-                    fprintf(target_file, "SUB R%d, %d\n", reg1, Ptemp->binding+2);
-                    fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
+                    fprintf(target_file, "MOV R%d, BP\n", x);
+                    fprintf(target_file, "SUB R%d, %d\n", x, Ptemp->binding+2);
+                    fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
                 }
                 else if(Gtemp!=NULL){
                     Ttemp=Gtemp->type;
-                    fprintf(target_file,"MOV R%d, [%d]\n",reg1,Gtemp->binding);
+                    fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding);
                 }
                 else{
                     printf("Variable Not Declared : %s\n", t->left->varname);
@@ -135,13 +135,13 @@ int codeGen(struct tnode* t){
                         printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
                         exit(1);
                     }
-                    fprintf(target_file, "ADD R%d, %d\n",reg1,Ftemp->fieldIndex);
-                    fprintf(target_file, "MOV R%d, [R%d]\n",reg1,reg1);
+                    fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
+                    fprintf(target_file, "MOV R%d, [R%d]\n",x,x);
                     Ttemp=Ftemp->type;
                     p=p->right;
                 }
             }
-			return reg1;
+			return x;
 
         case _ARRAY:    
             Gtemp= GLookup(t->varname);
@@ -188,7 +188,7 @@ int codeGen(struct tnode* t){
 
             /*check for equivalence of type of parameters*/
             x=0; y--;
-            p= t->right;
+           
             Ptemp= Gtemp->paramlist;
             while(Ptemp!= NULL){
                 z=0;
@@ -271,7 +271,7 @@ int codeGen(struct tnode* t){
 			fprintf(target_file,"RET\n");
 			break;
 
-        case _METHOD1:
+        case _METHOD1:// ID.func()
             Gtemp= GLookup(t->left->varname);
             if(Gtemp==NULL){
                 printf("object %s is not declared\n",t->left->varname);
@@ -337,7 +337,8 @@ int codeGen(struct tnode* t){
 			x=codeGen(t->right);												
 			x=get_register();
             //push return value register
-			fprintf(target_file, "PUSH R%d\n", x);			
+			fprintf(target_file, "PUSH R%d\n", x);
+            //calling the function			
 			fprintf(target_file, "MOV R%d, [%d]\n", x, Gtemp->binding+1);
 			fprintf(target_file, "ADD R%d, %d\n", x, Mtemp->Funcposition);
 			fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
@@ -376,6 +377,10 @@ int codeGen(struct tnode* t){
         
         case _METHOD2: //self.func()
             Ctemp= Clookup(t->varname);
+            if(Ctemp == NULL){
+                printf("class not found %s _ codegen METHOD2\n",t->varname);
+                exit(0);
+            }
             Mtemp= Ctemp->Vfuncptr;
             b=0;
             //find the given func from class def
@@ -398,7 +403,7 @@ int codeGen(struct tnode* t){
             }
             //checks for parameter # and types like before
             if(x!=y){
-                printf("Incorrect No of Arguments for Function %s\n",t->varname);
+                printf("Incorrect No of Arguments for Function _method2 %s\n",t->varname);
 				exit(0);
             }
             Ptemp= Phead;
@@ -423,7 +428,7 @@ int codeGen(struct tnode* t){
                 Ptemp=Ptemp->next;
             }
             //push the currrent registers to stack
-            for(y=-1;y<REG_COUNT;y++)													//Push Existing Registers
+            for(y=-1;y<REG_COUNT;y++)												
 				fprintf(target_file, "PUSH R%d\n",y+1);
             REG_COUNT=-1;
 
@@ -489,6 +494,10 @@ int codeGen(struct tnode* t){
 
         case _METHOD3: //something.something.somefunc()
             Ctemp = Class;
+             if(Ctemp == NULL){
+                printf("class not found _ codegen METHOD3\n");
+                exit(0);
+            }
             Ftemp= Ctemp->Memberfield;
             a=0;
             while(strcmp(Ftemp->name,t->left->left->varname)){
@@ -496,8 +505,9 @@ int codeGen(struct tnode* t){
                 a++;
             }
             Ctemp=Ftemp->Ctype;
+            Mtemp = Ctemp->Vfuncptr;
             b=0;
-            while(Mtail!=NULL){
+            while(Mtemp!=NULL){
                 if(strcmp(Mtemp->name,t->mid->varname)==0)
                     break;
                 Mtemp=Mtemp->next;
@@ -514,7 +524,7 @@ int codeGen(struct tnode* t){
             }
             //check for # and type of parameters in decl and def
             if(x!=y){
-                printf("Incorrect No of Arguments for Function %s\n",t->varname);
+                printf("Incorrect No of Arguments for Function %s _METHOD3\n ",t->varname);
 				exit(0);
             }
             Ptemp=Phead;
@@ -700,6 +710,22 @@ int codeGen(struct tnode* t){
             else if(Gtemp!= NULL){
 				fprintf(target_file, "MOV [%d], R%d\n", Gtemp->binding, r);
             }
+            if(t->mid!=NULL){
+				Ctemp=Clookup(t->mid->varname);
+				if(Ctemp==NULL)
+				{
+					printf("Unknown class: %s\n", t->mid->varname);
+					exit(1);
+				}
+				fprintf(target_file, "MOV [%d], %d\n", Gtemp->binding+1, 4096+8*Ctemp->class_idx);
+			}
+			else if(t->right->type==NULL)			// Object of a class
+			{
+				Gtemp=GLookup(t->right->varname);
+				fprintf(target_file, "MOV R%d, [%d]\n", r, Gtemp->binding+1);
+				Gtemp=GLookup(t->left->varname);
+				fprintf(target_file, "MOV [%d], R%d\n", Gtemp->binding+1, r);
+			}
             free_register();
 			free_register();
 			return -1;

@@ -497,6 +497,7 @@ void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *fun
     if(Ctype!= NULL){
        // printf("func def enocutnered\n");
         Mtemp= Ctype->Vfuncptr;
+        //check for equivalence bw paramerters of def and decl.
         while(Mtemp!=NULL){
             if(!strcmp(func->varname,Mtemp->name)){
                 Pdef= Phead;

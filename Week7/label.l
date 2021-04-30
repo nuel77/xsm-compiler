@@ -60,10 +60,18 @@
     if(CurrPass==2)
         fprintf(target_file, "CALL 0");
 }
-"CALL "[a-zA-Z][a-zA-Z0-9]+ {
+"CALL MAIN" {
+	if(CurrPass==2)
+		fprintf(target_file, "CALL %d", get_address(yytext+5));
+	}
+"CALL F"[0-9]+ {
     if(CurrPass==2)
         fprintf(target_file, "CALL %d", get_address(yytext+5));
 }
+"MOV R0, F"[0-9]+ {
+	if(CurrPass==2)
+		fprintf(target_file, "MOV R0, %d", get_address(yytext+8));
+	}
 
 "\n"    {
     if(CurrPass==2)
