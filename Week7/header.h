@@ -5,11 +5,11 @@
 #define VAL_NONE 0
 #define STACK_START 4096
 #define VARNAME_NONE "\0"
-static int REG_COUNT=-1, LABEL_COUNT=0, CURR_BINDING= 4096, LOCAL_BIND=1, PARAM_BIND=1,flabel=0,F_INDEX=0,C_INDEX=0;
+static int REG_COUNT=-1, LABEL_COUNT=0, CURR_BINDING= 4096, LOCAL_BIND=1, PARAM_BIND=1,flabel=0,F_INDEX=0,C_INDEX=0, START_FUNC;
 
 enum NodeType{
     _ID=0, _NUM, _ASSIGN, _PLUS,_MINUS, _DIV, _MUL,_MOD, _CONNECTOR, _WRITE, _READ, _EQ,_NE, _GE, _LE, _GT,_LT, _IF_THEN_ELSE, _IF_THEN, _WHILE,
-    _BREAK, _CONTINUE, _REAPEAT_UNTIL, _DO_WHILE, _STR, _ARRAY,_READ_ARRAY, _ASGN_ARRAY, _MATRIX, _ASGN_MATRIX, _READ_MATRIX, _ADDR, _PTR, _ASGN_PTR,
+    _BREAK, _CONTINUE, _BRKP, _REAPEAT_UNTIL, _DO_WHILE, _STR, _ARRAY,_READ_ARRAY, _ASGN_ARRAY, _MATRIX, _ASGN_MATRIX, _READ_MATRIX, _ADDR, _PTR, _ASGN_PTR,
     _READ_PTR, _ASGN_PTR_ADDR, _FUNC, _RET, _ARG,_INIT, _ALLOC,_FREE, _FIELD, _ASSIGN_FIELD, _READ_FIELD, _NULL, _DELETE, _NEW, _METHOD1,_METHOD2,_METHOD3
 };
 struct Classtable{
@@ -113,6 +113,7 @@ int evaluate(struct tnode*);
 int codeGen(struct tnode*t);
 void end_program(void);
 
+int get_label();
 int get_register(void);
 void free_register(void);
 int next_label(void);
@@ -141,7 +142,7 @@ struct Classtable* Clookup(char *name);
 struct Memberfunclist * Class_Mlookup(struct Classtable *ctype, char * name);
 struct Fieldlist * Class_Flookup(struct Classtable *ctype, char *name);
 
-void GInstall(char *name, struct Typetable *type, int size1, int size2, enum NodeType nodetype, struct Paramstruct *paramlist);
+void GInstall(char *name, struct Typetable *type, struct Classtable *Ctype, int size1, int size2, enum NodeType nodetype, struct Paramstruct *paramlist);
 void LInstall(char *name, struct Typetable *type, enum NodeType nodetype);
 void PInstall(char *name, struct Typetable *type,  enum NodeType nodetype);
 void TInstall(char *name,int size, struct Fieldlist *fields);

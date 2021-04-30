@@ -1,5 +1,8 @@
 #include "header.h"
 
+int get_label(){
+    return LABEL_COUNT++;
+}
 int get_register(){
     
     if(REG_COUNT>=20){
@@ -163,6 +166,7 @@ void Class_Minstall(struct Classtable* cptr,char *name, struct Typetable *type, 
 	Mtemp->Funcposition=-1;
 	Mtemp->flabel=getFlabel();
 	Mtemp->next=NULL;
+    cptr->Methodcount++;
 
     if(cptr->Vfuncptr==NULL){
         cptr->Vfuncptr= Mtemp;
@@ -199,6 +203,7 @@ void Class_Finstall(struct Classtable* cptr, char * typename, char* name){
 	Ftemp->Ctype= ctype;
 	Ftemp->next=NULL;
 
+    cptr->Fieldcount++;
     if(cptr->Memberfield==NULL){
         cptr->Memberfield= Ftemp;
     }
@@ -302,7 +307,7 @@ void TInstall(char *name, int size, struct Fieldlist *fields){
     }
 }
 
-void GInstall(char *name, struct Typetable *type, int size1, int size2, enum NodeType nodetype, struct Paramstruct *paramlist){
+void GInstall(char *name, struct Typetable *type, struct Classtable *Ctype, int size1, int size2, enum NodeType nodetype, struct Paramstruct *paramlist){
     struct Gsymbol *tmp;
     tmp= GLookup(name);
     if(tmp!=NULL){
@@ -314,12 +319,17 @@ void GInstall(char *name, struct Typetable *type, int size1, int size2, enum Nod
         exit(0);
     }
     tmp = (struct Gsymbol*) malloc(sizeof(struct Gsymbol));
-    tmp->name= name;
+    tmp->name= malloc(sizeof(name));
+    strcpy(tmp->name,name);
+
     tmp->type= type;
+    tmp->Ctype=Ctype;
     tmp->size1= size1;
+    if(Ctype!=NULL)
+        tmp->size1= 2;
     tmp->size2= size2;
     tmp->nodetype= nodetype;
-    tmp->binding= CURR_BINDING;
+    
     tmp->paramlist= paramlist;
     tmp->next= NULL;
     
@@ -332,7 +342,7 @@ void GInstall(char *name, struct Typetable *type, int size1, int size2, enum Nod
         tmp->binding= CURR_BINDING;
     }
     
-    CURR_BINDING += size1*size2;
+    CURR_BINDING += tmp->size1*tmp->size2;
     if(Ghead==NULL){
         Ghead= tmp;
     }
@@ -476,7 +486,7 @@ void mainfuncdef(struct tnode *body){
 void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *func, struct Paramstruct *Phead, struct tnode * body){
 
     if(body->right->left->type!=type){
-		printf("Return type of Function %s not correct\n",getFunctionname(flabel-1));
+		printf("Return type of Function %s not correct\n",getFunctionname(F_INDEX-1));
 		exit(0);
 	}
     int flag;
@@ -485,6 +495,7 @@ void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *fun
     struct Paramstruct *Pdef, *Pdecl;
     struct Memberfunclist *Mtemp;
     if(Ctype!= NULL){
+       // printf("func def enocutnered\n");
         Mtemp= Ctype->Vfuncptr;
         while(Mtemp!=NULL){
             if(!strcmp(func->varname,Mtemp->name)){

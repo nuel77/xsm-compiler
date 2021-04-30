@@ -51,60 +51,102 @@ int codeGen(struct tnode* t){
                 fprintf(target_file, "MOV R%d, [%d]\n", reg1, t->Gentry->binding);
             }
             else {
-                printf("unknown variable :%s line 362\n", t->varname);
+                printf("unknown variable _ID :%s line 362\n", t->varname);
                 exit(1);
             }
             return reg1;
 
         case _FIELD:
             reg1= get_register();
-            Ltemp=LLookup(t->left->varname);
-			Ptemp=PLookup(t->left->varname);
-			Gtemp=GLookup(t->left->varname);
-            if((Ltemp!=NULL) && (Ptemp!=NULL)){
-				printf("Multiple Declaration Local variable and Formal Argument\n");
-				exit(0);
-			}
-            if(Ltemp!=NULL){
-				Ttemp=Ltemp->type;
-				fprintf(target_file,"MOV R%d, BP\n",reg1);
-				fprintf(target_file, "ADD R%d, %d\n", reg1, Ltemp->binding);
-				fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
-			}
-            else if(Ptemp!=NULL){
-				Ttemp=Ptemp->type;
-				fprintf(target_file, "MOV R%d, BP\n", reg1);
-				fprintf(target_file, "SUB R%d, %d\n", reg1, Ptemp->binding+2);
-				fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
-			}
-			else if(Gtemp!=NULL){
-				Ttemp=Gtemp->type;
-				fprintf(target_file,"MOV R%d, [%d]\n",reg1,Gtemp->binding);
-			}
+            //check if its a has self type.
+            if(strcmp(t->varname,"\0")!=0){
+                z=3;
+                Ptemp=Phead;
+                while(Ptemp!=NULL){
+                    z++;
+                    Ptemp=Ptemp->next;
+                }
+                fprintf(target_file, "MOV R%d, BP\n", reg1);
+				fprintf(target_file, "SUB R%d, %d\n", reg1, z+1);
+				fprintf(target_file, "MOV R%d, [R%d]\n", reg1, reg1);
+
+                //get self class.
+                Ctemp=Clookup(t->varname);
+                Ftemp=Ctemp->Memberfield;
+                z=0;
+                while(strcmp(Ftemp->name, t->left->varname)){
+                    z++;
+                    if(Ftemp->type==NULL){
+                        z++;
+                    }
+                    Ftemp= Ftemp->next;
+                }
+                fprintf(target_file, "ADD R%d, %d\n", reg1, z);
+				fprintf(target_file, "MOV R%d, [R%d]\n", reg1, reg1);
+
+                Ttemp= Ftemp->type;
+                p=t->right;
+                while(p!=NULL){
+                    Ftemp= FLookup(Ttemp,p->left->varname);
+                    if(Ftemp==NULL){
+                        printf("unkown identifier in field: %s\n",p->left->varname);
+                        exit(0);
+                    }
+                    fprintf(target_file, "ADD R%d, %d\n", x, Ftemp->fieldIndex);
+					fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+					Ttemp=Ftemp->type;
+					p=p->right;
+                }
+            }
             else{
-				printf("Variable Not Declared : %s\n", t->left->varname);
-				exit(1);
-			}
+                Ltemp=LLookup(t->left->varname);
+                Ptemp=PLookup(t->left->varname);
+                Gtemp=GLookup(t->left->varname);
+                if((Ltemp!=NULL) && (Ptemp!=NULL)){
+                    printf("Multiple Declaration Local variable and Formal Argument\n");
+                    exit(0);
+                }
+                if(Ltemp!=NULL){
+                    Ttemp=Ltemp->type;
+                    fprintf(target_file,"MOV R%d, BP\n",reg1);
+                    fprintf(target_file, "ADD R%d, %d\n", reg1, Ltemp->binding);
+                    fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
+                }
+                else if(Ptemp!=NULL){
+                    Ttemp=Ptemp->type;
+                    fprintf(target_file, "MOV R%d, BP\n", reg1);
+                    fprintf(target_file, "SUB R%d, %d\n", reg1, Ptemp->binding+2);
+                    fprintf(target_file,"MOV R%d, [R%d]\n",reg1,reg1);
+                }
+                else if(Gtemp!=NULL){
+                    Ttemp=Gtemp->type;
+                    fprintf(target_file,"MOV R%d, [%d]\n",reg1,Gtemp->binding);
+                }
+                else{
+                    printf("Variable Not Declared : %s\n", t->left->varname);
+                    exit(1);
+                }
 
-			p=t;
+                p=t;
 
-			while(p->right!=NULL){
-				Ftemp=FLookup(Ttemp,p->right->left->varname);
-				if(Ftemp==NULL){
-					printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
-					exit(1);
-				}
-				fprintf(target_file, "ADD R%d, %d\n",reg1,Ftemp->fieldIndex);
-				fprintf(target_file, "MOV R%d, [R%d]\n",reg1,reg1);
-				Ttemp=Ftemp->type;
-				p=p->right;
-			}
+                while(p->right!=NULL){
+                    Ftemp=FLookup(Ttemp,p->right->left->varname);
+                    if(Ftemp==NULL){
+                        printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
+                        exit(1);
+                    }
+                    fprintf(target_file, "ADD R%d, %d\n",reg1,Ftemp->fieldIndex);
+                    fprintf(target_file, "MOV R%d, [R%d]\n",reg1,reg1);
+                    Ttemp=Ftemp->type;
+                    p=p->right;
+                }
+            }
 			return reg1;
 
         case _ARRAY:    
             Gtemp= GLookup(t->varname);
             if(Gtemp==NULL){
-                printf("Unknown variable: %s line 370\n", t->varname);
+                printf("Unknown variable _ARRAY: %s line 370\n", t->varname);
                 exit(0);
             }
             m= codeGen(t->mid);
@@ -145,14 +187,21 @@ int codeGen(struct tnode* t){
             }
 
             /*check for equivalence of type of parameters*/
+            x=0; y--;
             p= t->right;
             Ptemp= Gtemp->paramlist;
             while(Ptemp!= NULL){
+                z=0;
+                p=t->right;
+                while(z<y){
+                    z++;
+                    p=p->left;
+                }
                 if(p->right->type != Ptemp->type){
-                    printf("argument types do not match for declaration and definitin %s\n",t->varname);
+                    printf("Incorrect Parameter (%s) type for function %s\n",Ptemp->name,t->varname);
                     exit(0);
                 }
-                p=p->left;
+                y--;
                 Ptemp= Ptemp->next;
             }
             /*push all currrent active registers into the stack*/
@@ -193,7 +242,6 @@ int codeGen(struct tnode* t){
             fprintf(target_file, "ADD R%d, %d\n",reg1, z+1); //address of the returned value
             fprintf(target_file,"MOV R%d, [R%d]\n", reg1, reg1);
             return reg1;
-            break;
         
         case _ARG:
             if(t!= NULL){
@@ -222,6 +270,342 @@ int codeGen(struct tnode* t){
 			fprintf(target_file,"POP R0\n");
 			fprintf(target_file,"RET\n");
 			break;
+
+        case _METHOD1:
+            Gtemp= GLookup(t->left->varname);
+            if(Gtemp==NULL){
+                printf("object %s is not declared\n",t->left->varname);
+                exit(0);
+            }
+            Ctemp= Gtemp->Ctype;
+            Mtemp= Ctemp->Vfuncptr;
+            //find the specified method in class definition
+            while(Mtemp!=NULL){
+                if(strcmp(Mtemp->name,t->mid->varname)==0)
+                    break;
+                Mtemp=Mtemp->next;
+            }
+            Ptemp= Mtemp->paramlist; //parameter in class definintion
+            p=t->right; //given parameters.
+
+            x=y=0;
+            while(Ptemp!=NULL){
+                x++;
+                Ptemp=Ptemp->next;
+            }
+            while(p!=NULL){
+                y++;
+                p=p->left;
+            }
+            //check if no of parmerters are equal
+            if(x!=y){
+                printf("Incorrect No of Arguments for Function %s\n",t->varname);
+				exit(0);
+            }
+            /*just checking the param types for decl and def here, 
+            paramlist in Gtemp are inserted in reverse order to paramlist in fucntion call*/
+            x=0;
+            y--;
+            Ptemp= Gtemp->paramlist;
+            while(Ptemp!=NULL){
+                z=0;
+                p= t->right;
+                while(z<y){
+                    z++;
+                    p=p->left;
+                }
+                if(Ptemp->type != p->right->type){
+                    printf("Incorrect Parameter (%s) type for function %s\n",Ptemp->name,t->mid->varname);
+					exit(0);
+                }
+                y--;
+                Ptemp=Ptemp->next;
+            }
+            //push all currrent active registers to stack
+            for(y=-1;y<REG_COUNT;y++)													
+				fprintf(target_file, "PUSH R%d\n",y+1);
+
+            REG_COUNT =-1;
+            //push the binding 
+            x=get_register();
+			fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding);
+			fprintf(target_file,"PUSH R%d\n",x);
+			fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding+1);
+			fprintf(target_file,"PUSH R%d\n",x);
+			free_register();
+            //push the arguments
+			x=codeGen(t->right);												
+			x=get_register();
+            //push return value register
+			fprintf(target_file, "PUSH R%d\n", x);			
+			fprintf(target_file, "MOV R%d, [%d]\n", x, Gtemp->binding+1);
+			fprintf(target_file, "ADD R%d, %d\n", x, Mtemp->Funcposition);
+			fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+			fprintf(target_file, "CALL R%d\n", x);
+            //pop return value
+			fprintf(target_file,"POP R%d\n",x);				
+
+			free_register();
+
+			z=0;
+			Ptemp=Mtemp->paramlist;
+			x=get_register();
+            //pop arguments
+			while(Ptemp!=NULL){
+				fprintf(target_file,"POP R%d\n",x);		
+				Ptemp=Ptemp->next;
+				z++;
+			}
+
+			free_register();
+            // Pop self address
+			fprintf(target_file, "SUB SP, 2\n");			
+			z+=2;
+			REG_COUNT=y;
+            //Pop Registers
+			for(;y>=0;y--){
+				fprintf(target_file, "POP R%d\n", y);			//Pop Registers
+				z++;
+			}
+			x=get_register();
+			fprintf(target_file, "MOV R%d, SP\n",x);
+			fprintf(target_file,"ADD R%d, %d\n",x,z+1);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+
+			return x;
+        
+        case _METHOD2: //self.func()
+            Ctemp= Clookup(t->varname);
+            Mtemp= Ctemp->Vfuncptr;
+            b=0;
+            //find the given func from class def
+            while(Mtemp!=NULL){
+                if(strcmp(Mtemp->name,t->left->varname)==0)
+                    break;
+                Mtemp= Mtemp->next;
+                b++;
+            }
+            Ptemp= Mtemp->paramlist;
+            p= t->right;
+            x=y=0;
+            while(Ptemp!=NULL){
+                x++;
+                Ptemp=Ptemp->next;
+            }
+            while(p!=NULL){
+                y++;
+                p=p->left;
+            }
+            //checks for parameter # and types like before
+            if(x!=y){
+                printf("Incorrect No of Arguments for Function %s\n",t->varname);
+				exit(0);
+            }
+            Ptemp= Phead;
+            c=0;
+            while(Ptemp!=NULL){
+                c++; Ptemp=Ptemp->next;
+            }
+            x=0;
+            y--;
+            Ptemp= Mtemp->paramlist;
+            while(Ptemp!=NULL){
+                z=0;
+                p=t->right;
+                while(z<y){
+                    z++; p=p->left;
+                }
+                if(Ptemp->type!= p->right->type){
+                    printf("Incorrect Parameter (%s) type for function %s\n",Ptemp->name,t->mid->varname);
+					exit(0);
+                }
+                y--;
+                Ptemp=Ptemp->next;
+            }
+            //push the currrent registers to stack
+            for(y=-1;y<REG_COUNT;y++)													//Push Existing Registers
+				fprintf(target_file, "PUSH R%d\n",y+1);
+            REG_COUNT=-1;
+
+            x=get_register();
+			z=get_register();
+			fprintf(target_file,"MOV R%d, BP\n",x);
+			fprintf(target_file,"SUB R%d, %d\n",x,c+4);
+			fprintf(target_file,"MOV R%d, [R%d]\n",z,x);
+			fprintf(target_file,"PUSH R%d\n",z);
+			fprintf(target_file,"ADD R%d, 1\n",x);
+			fprintf(target_file,"MOV R%d, [R%d]\n",z,x);
+			fprintf(target_file,"PUSH R%d\n",z);
+			free_register();
+			free_register();
+
+            //Push Arguments
+			x=codeGen(t->right);												
+			
+            //Push return value
+            x=get_register();
+			fprintf(target_file, "PUSH R%d\n", x);	
+
+            //find label from virtual function table pointer
+			fprintf(target_file,"MOV R%d, BP\n",x);			
+			fprintf(target_file,"SUB R%d, %d\n",x,c+3);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file,"ADD R%d, %d\n",x,b);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file, "CALL R%d\n", x);
+
+            //Pop return value
+			fprintf(target_file,"POP R%d\n",x);					
+			free_register();
+
+			z=0;
+			Ptemp=Mtemp->paramlist;
+			x=get_register();
+
+            //Pop Arguments
+			while(Ptemp!=NULL){
+				fprintf(target_file,"POP R%d\n",x);			
+				Ptemp=Ptemp->next;
+				z++;
+			}
+
+			free_register();
+            // Pop self address
+			fprintf(target_file, "SUB SP, 2\n");			
+			z+=2;
+
+			REG_COUNT=y;
+            //Pop Registers
+			for(;y>=0;y--){
+				fprintf(target_file, "POP R%d\n", y);			
+				z++;
+			}
+			x=get_register();
+			fprintf(target_file, "MOV R%d, SP\n",x);
+			fprintf(target_file,"ADD R%d, %d\n",x,z+1);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+
+			return x;
+
+        case _METHOD3: //something.something.somefunc()
+            Ctemp = Class;
+            Ftemp= Ctemp->Memberfield;
+            a=0;
+            while(strcmp(Ftemp->name,t->left->left->varname)){
+                Ftemp= Ftemp->next;
+                a++;
+            }
+            Ctemp=Ftemp->Ctype;
+            b=0;
+            while(Mtail!=NULL){
+                if(strcmp(Mtemp->name,t->mid->varname)==0)
+                    break;
+                Mtemp=Mtemp->next;
+                b++;
+            }
+            Ptemp= Mtemp->paramlist;
+            p=t->right;
+            x=y=0;
+            while(Ptemp!=NULL){
+                x++; Ptemp=Ptemp->next;
+            }
+            while(p!=NULL){
+                y++; p=p->left;
+            }
+            //check for # and type of parameters in decl and def
+            if(x!=y){
+                printf("Incorrect No of Arguments for Function %s\n",t->varname);
+				exit(0);
+            }
+            Ptemp=Phead;
+            c=0;
+            while(Ptemp!=NULL){
+                c++;
+                Ptemp=Ptemp->next;
+            }
+            x=0;
+            y--;
+            Ptemp=Mtemp->paramlist;
+            while(Ptemp!=NULL){
+				z=0;
+				p=t->right;
+				while(z<y){
+					z++;
+					p=p->left;
+				}
+				if(Ptemp->type!=p->right->type){
+					printf("Incorrect Parameter (%s) type for function %s\n",Ptemp->name,t->mid->varname);
+					exit(0);
+				}
+				y--;
+				Ptemp=Ptemp->next;
+			}
+
+			for(y=-1;y<REG_COUNT;y++)													//Push Existing Registers
+				fprintf(target_file, "PUSH R%d\n",y+1);
+
+			REG_COUNT=-1;
+
+			x=get_register();
+			y=get_register();
+
+			fprintf(target_file,"MOV R%d, BP\n",x);
+			fprintf(target_file,"SUB R%d, %d\n",x,c+4);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file,"ADD R%d, %d\n",x,a);
+			fprintf(target_file,"MOV R%d, [R%d]\n",y,x);
+			fprintf(target_file,"PUSH R%d\n",y);
+			fprintf(target_file,"ADD R%d, 1\n",x);
+			fprintf(target_file,"MOV R%d, [R%d]\n",y,x);
+			fprintf(target_file,"PUSH R%d\n",y);
+
+			free_register();
+			free_register();
+
+			x=codeGen(t->right);												//Push Arguments
+			x=get_register();
+
+			fprintf(target_file, "PUSH R%d\n", x);			//Push return value
+
+			fprintf(target_file,"MOV R%d, BP\n",x);			//To find label from virtual function table pointer
+			fprintf(target_file,"SUB R%d, %d\n",x,c+4);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file,"ADD R%d, %d\n",x,a+1);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file,"ADD R%d, %d\n",x,b);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			fprintf(target_file, "CALL R%d\n", x);
+
+			fprintf(target_file,"POP R%d\n",x);					//Pop return value
+
+			free_register();
+
+			z=0;
+			Ptemp=Mtemp->paramlist;
+			x=get_register();
+
+			while(Ptemp!=NULL){
+				fprintf(target_file,"POP R%d\n",x);			//Pop Arguments
+				Ptemp=Ptemp->next;
+				z++;
+			}
+
+			fprintf(target_file, "SUB SP, 2\n");			// Pop self address
+			z+=2;
+
+			free_register();
+			REG_COUNT=y;
+			for(y--;y>=0;y--){
+				fprintf(target_file, "POP R%d\n", y);			//Pop Registers
+				z++;
+			}
+
+			x=get_register();
+			fprintf(target_file, "MOV R%d, SP\n",x);
+			fprintf(target_file,"ADD R%d, %d\n",x,z+1);
+			fprintf(target_file,"MOV R%d, [R%d]\n",x,x);
+			return x;
+
 
         case _INIT :
 			x = get_register();
@@ -285,6 +669,10 @@ int codeGen(struct tnode* t){
 			fprintf(target_file, "MOV R%d, -1\n", x);
 			return x;
 
+        case _BRKP:
+			fprintf(target_file,"BRKP\n");
+			return -1;
+
         case _ASSIGN:
 			r = codeGen(t->right); //value to be stored
             reg1= get_register();
@@ -296,7 +684,7 @@ int codeGen(struct tnode* t){
 			Gtemp=GLookup(t->left->varname);
 			if(Ltemp==NULL  && Ptemp==NULL && Gtemp==NULL)
 			{
-				printf("Unknown variable: %s line 496\n", t->left->varname);
+				printf("Unknown variable _ASSIGN: %s line 496\n", t->left->varname);
                 exit(0);
             }
             if(Ltemp!= NULL){
@@ -321,7 +709,7 @@ int codeGen(struct tnode* t){
             m= codeGen(t->mid);
             Gtemp=GLookup(t->left->varname);
             if(Gtemp==NULL){
-                printf("Unknown variable: %s line 521\n", t->varname);
+                printf("Unknown variable _ASGN_ARRAY: %s line 521\n", t->varname);
                 exit(0);
             }
             location= Gtemp->binding;
@@ -336,59 +724,117 @@ int codeGen(struct tnode* t){
         case _ASSIGN_FIELD:
 			x = codeGen(t->right);
 			y = get_register();
+            if(strcmp(t->left->varname,"\0")!=0){
+                Ctemp= Clookup(t->left->varname);
+                z=3;
+                Ptemp=Phead;
+                while(Ptemp!=NULL){
+                    z++;
+                    Ptemp=Ptemp->next;
+                }
 
-			Ltemp=LLookup(t->left->left->varname);
-			Ptemp=PLookup(t->left->left->varname);
-			Gtemp=GLookup(t->left->left->varname);
+                fprintf(target_file, "MOV R%d, BP\n", y);
+				fprintf(target_file, "SUB R%d, %d\n", y, z+1);
+				fprintf(target_file, "MOV R%d, [R%d]\n", y, y);
 
-			if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
-				printf("Unknown variable: %s\n", t->left->varname);
-				exit(1);
-			}
-
-			if(Ltemp!=NULL){
-				Ttemp=Ltemp->type;
-				fprintf(target_file, "MOV R%d, BP\n", y);
-				fprintf(target_file, "ADD R%d, %d\n", y, Ltemp->binding);
-				fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
-			}
-			else if(Ptemp!=NULL){
-				Ttemp=Ptemp->type;
-				fprintf(target_file, "MOV R%d, BP\n", y);
-				fprintf(target_file, "SUB R%d, %d\n", y, Ptemp->binding+2);
-				fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
-			}
-			else if(Gtemp!=NULL){
-				Ttemp=Gtemp->type;
-				fprintf(target_file, "MOV R%d, [%d]\n", y,Gtemp->binding);
-			}
-
-			p=t->left;
-
-			while(p->right->right!=NULL){
-				Ftemp=FLookup(Ttemp,p->right->left->varname);
-				if(Ftemp==NULL)
-				{
-					printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
-					exit(1);
+                Ftemp=Ctemp->Memberfield;
+                z=0;
+                while(strcmp(Ftemp->name, t->left->left->varname)){
+					z++;
+					if(Ftemp->type==NULL)
+						z++;
+					Ftemp=Ftemp->next;
 				}
-				fprintf(target_file, "ADD R%d, %d\n",y,Ftemp->fieldIndex);
-				fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
+                fprintf(target_file, "ADD R%d, %d\n", y, z);
+                Ttemp=Ftemp->type;
+                if(t->left->right!=NULL){
+                    fprintf(target_file, "MOV R%d, [R%d]\n", y, y);
+                    p=t->left->right;
+                    while(p->right!=NULL){
+						Ftemp=FLookup(Ttemp, p->left->varname);
+						if(Ftemp==NULL){
+							printf("Unknown identifier in FIELD: %s\n", p->left->varname);
+							exit(0);
+						}
+						fprintf(target_file, "ADD R%d, %d\n", y, Ftemp->fieldIndex);
+						fprintf(target_file, "MOV R%d, [R%d]\n", y, y);
+						Ttemp=Ftemp->type;
+						p=p->right;
+					}
+                    Ftemp=FLookup(Ttemp, p->left->varname);
+					if(Ftemp==NULL){
+						printf("Unknown identifier in FIELD: %s\n", p->mid->varname);
+						exit(1);
+					}
+					fprintf(target_file, "ADD R%d, %d\n", y, Ftemp->fieldIndex);
+				}
 
-				Ttemp=Ftemp->type;
-				p=p->right;
-			}
+				fprintf(target_file, "MOV [R%d], R%d\n", y, x);
+				if(t->mid!=NULL){
+					Ctemp=Clookup(t->mid->varname);
+					if(Ctemp==NULL){
+						printf("Unknown class: %s\n", t->mid->varname);
+						exit(1);
+					}
+				fprintf(target_file, "INR R%d\n", y);
+				fprintf(target_file, "MOV [R%d], %d\n", y, 4096+8*Ctemp->class_idx);
+				}
 
-			Ftemp=FLookup(Ttemp,p->right->left->varname);
-			if(Ftemp==NULL){
-				printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
-				exit(1);
-			}
-			fprintf(target_file, "ADD R%d, %d\n",y,Ftemp->fieldIndex);
-			fprintf(target_file, "MOV [R%d], R%d\n", y,x);
+            }
+            else{
+                Ltemp=LLookup(t->left->left->varname);
+                Ptemp=PLookup(t->left->left->varname);
+                Gtemp=GLookup(t->left->left->varname);
 
-			free_register();
-			free_register();
+                if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
+                    printf("Unknown variable _ASSIGN_FIELD: %s\n", t->left->varname);
+                    exit(1);
+                }
+
+                if(Ltemp!=NULL){
+                    Ttemp=Ltemp->type;
+                    fprintf(target_file, "MOV R%d, BP\n", y);
+                    fprintf(target_file, "ADD R%d, %d\n", y, Ltemp->binding);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
+                }
+                else if(Ptemp!=NULL){
+                    Ttemp=Ptemp->type;
+                    fprintf(target_file, "MOV R%d, BP\n", y);
+                    fprintf(target_file, "SUB R%d, %d\n", y, Ptemp->binding+2);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
+                }
+                else if(Gtemp!=NULL){
+                    Ttemp=Gtemp->type;
+                    fprintf(target_file, "MOV R%d, [%d]\n", y,Gtemp->binding);
+                }
+
+                p=t->left;
+
+                while(p->right->right!=NULL){
+                    Ftemp=FLookup(Ttemp,p->right->left->varname);
+                    if(Ftemp==NULL)
+                    {
+                        printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
+                        exit(1);
+                    }
+                    fprintf(target_file, "ADD R%d, %d\n",y,Ftemp->fieldIndex);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", y,y);
+
+                    Ttemp=Ftemp->type;
+                    p=p->right;
+                }
+
+                Ftemp=FLookup(Ttemp,p->right->left->varname);
+                if(Ftemp==NULL){
+                    printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
+                    exit(1);
+                }
+                fprintf(target_file, "ADD R%d, %d\n",y,Ftemp->fieldIndex);
+                fprintf(target_file, "MOV [R%d], R%d\n", y,x);
+            }
+            
+            free_register();
+            free_register();
 			return -1;
             
         case _PLUS:
@@ -465,7 +911,7 @@ int codeGen(struct tnode* t){
 
             if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) )
 			{
-				printf("Unknown variable: %s line 608\n", t->left->varname);
+				printf("Unknown variable _READ: %s line 608\n", t->left->varname);
 				exit(1);
 			}
 
@@ -531,57 +977,102 @@ int codeGen(struct tnode* t){
         case _READ_MATRIX:  break;
         case _READ_PTR :    break;
         case _READ_FIELD:
-			Ltemp=LLookup(t->left->left->varname);
-			Ptemp=PLookup(t->left->left->varname);
-			Gtemp=GLookup(t->left->left->varname);
-
-			x=get_register();
-
-			if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
-				printf("Unknown variable: %s\n", t->left->varname);
-				exit(1);
-			}
-
-			if(Ltemp!=NULL){
-				Ttemp=Ltemp->type;
-				fprintf(target_file, "MOV R%d, BP\n", x);
-				fprintf(target_file, "ADD R%d, %d\n", x, Ltemp->binding);
-				fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
-			}
-			else if(Ptemp!=NULL){
-				Ttemp=Ptemp->type;
-				fprintf(target_file, "MOV R%d, BP\n", x);
-				fprintf(target_file, "SUB R%d, %d\n", x, Ptemp->binding+2);
-				fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
-			}
-			else if(Gtemp!=NULL){
-				Ttemp=Gtemp->type;
-				fprintf(target_file, "MOV R%d, [%d]\n",x, Gtemp->binding);
-			}
-
-			p=t->left;
-
-			while(p->right->right!=NULL){
-				Ftemp=FLookup(Ttemp,p->right->left->varname);
-				if(Ftemp==NULL){
-					printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
-					exit(1);
+            x=get_register();
+            if(strcmp(t->left->varname,"\0")!=0){
+                Ctemp=Clookup(t->left->varname);
+				z=3;
+				Ptemp=Phead;
+				while(Ptemp!=NULL){
+					z++;
+					Ptemp=Ptemp->next;
 				}
-				fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
-				fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
-
+				fprintf(target_file, "MOV R%d, BP\n", x);
+				fprintf(target_file, "SUB R%d, %d\n", x, z+1);
+				fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+				Ftemp=Ctemp->Memberfield;
+				z=0;
+				while(strcmp(Ftemp->name, t->left->left->varname)){
+					z++;
+					if(Ftemp->type==NULL)
+						z++;
+					Ftemp=Ftemp->next;
+				}
+				fprintf(target_file, "ADD R%d, %d\n", x, z);
 				Ttemp=Ftemp->type;
-				p=p->right;
-			}
+				if(t->left->right!=NULL){
+					fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+					p=t->left->right;
+					while(p->right!=NULL){
+						Ftemp=FLookup(Ttemp, p->left->varname);
+						if(Ftemp==NULL){
+							printf("Unknown identifier in FIELD: %s\n", p->left->varname);
+							exit(1);
+						}
+						fprintf(target_file, "ADD R%d, %d\n", x, Ftemp->fieldIndex);
+						fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+						Ttemp=Ftemp->type;
+						p=p->right;
+					}
+					Ftemp=FLookup(Ttemp, p->left->varname);
+					if(Ftemp==NULL){
+						printf("Unknown identifier in FIELD: %s\n", p->left->varname);
+						exit(1);
+					}
+					fprintf(target_file, "ADD R%d, %d\n", x, Ftemp->fieldIndex);
+				}
+            }
+            else{
+                Ltemp=LLookup(t->left->left->varname);
+                Ptemp=PLookup(t->left->left->varname);
+                Gtemp=GLookup(t->left->left->varname);
 
-			Ftemp=FLookup(Ttemp,p->right->left->varname);
+                
 
-			if(Ftemp==NULL){
-				printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
-				exit(1);
-			}
-			fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
+                if( (Ltemp==NULL) && (Ptemp==NULL) && (Gtemp==NULL) ){
+                    printf("Unknown variable _READ_FIED: %s\n", t->left->varname);
+                    exit(1);
+                }
 
+                if(Ltemp!=NULL){
+                    Ttemp=Ltemp->type;
+                    fprintf(target_file, "MOV R%d, BP\n", x);
+                    fprintf(target_file, "ADD R%d, %d\n", x, Ltemp->binding);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
+                }
+                else if(Ptemp!=NULL){
+                    Ttemp=Ptemp->type;
+                    fprintf(target_file, "MOV R%d, BP\n", x);
+                    fprintf(target_file, "SUB R%d, %d\n", x, Ptemp->binding+2);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
+                }
+                else if(Gtemp!=NULL){
+                    Ttemp=Gtemp->type;
+                    fprintf(target_file, "MOV R%d, [%d]\n",x, Gtemp->binding);
+                }
+
+                p=t->left;
+
+                while(p->right->right!=NULL){
+                    Ftemp=FLookup(Ttemp,p->right->left->varname);
+                    if(Ftemp==NULL){
+                        printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
+                        exit(1);
+                    }
+                    fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
+                    fprintf(target_file, "MOV R%d, [R%d]\n", x,x);
+
+                    Ttemp=Ftemp->type;
+                    p=p->right;
+                }
+
+                Ftemp=FLookup(Ttemp,p->right->left->varname);
+
+                if(Ftemp==NULL){
+                    printf("Unknown identifier in FIELD: %s\n", p->right->left->varname);
+                    exit(1);
+                }
+                fprintf(target_file, "ADD R%d, %d\n",x,Ftemp->fieldIndex);
+            }
 			y = get_register();
 			fprintf(target_file,"MOV R%d, \"Read\"\n",y);
 			fprintf(target_file,"PUSH R%d\n",y);
@@ -694,7 +1185,7 @@ int codeGen(struct tnode* t){
 }
 
 void initialxsmcode(){
-	fprintf(target_file,"0\n2056\n0\n0\n0\n0\n0\n0\n");
+	
 	fprintf(target_file,"MOV SP, %d\n",CURR_BINDING-1);
 	fprintf(target_file,"MOV BP, %d\n",CURR_BINDING);
 	fprintf(target_file,"PUSH R0\n");

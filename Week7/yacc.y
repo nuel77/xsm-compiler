@@ -71,11 +71,12 @@ GDecllist: GDecllist GDec1
 ;
 GDec1: Type GidList ';'				
 ;
-Type: INT							{curr_type = TLookup("Integer");}
-	|STR							{curr_type = TLookup("String");}
-	|ID		{
+Type: INT							{curr_type = TLookup("Integer"); Ctype=NULL;}
+	|STR							{curr_type = TLookup("String"); Ctype=NULL;}
+	|ID	 {
 		curr_type = TLookup($<Node>1->varname); 
-		if(curr_type==NULL){
+		Ctype= Clookup($<Node>1->varname);
+		if(curr_type==NULL && Ctype==NULL){
 			printf("Unknown type:%s",$<Node>1->varname); 
 			exit(0);
 		}
@@ -85,15 +86,38 @@ GidList: GidList ',' Gid
 	|Gid
 ;
 
-Gid: ID								{GInstall($<Node>1->varname, curr_type, 1, 1, _ID, NULL);}
-	|ID '[' NUM ']'					{GInstall($<Node>1->varname, curr_type, $<Node>3->val, 1, _ARRAY, NULL);}
-	|ID '[' NUM ']' '[' NUM ']'		{GInstall($<Node>1->varname, curr_type, $<Node>3->val, $<Node>6->val, _MATRIX, NULL);}
+Gid: ID								{GInstall($<Node>1->varname, curr_type, Ctype, 1, 1, _ID, NULL);}
+	|ID '[' NUM ']'					{GInstall($<Node>1->varname, curr_type, NULL, $<Node>3->val, 1, _ARRAY, NULL);}
+	|ID '[' NUM ']' '[' NUM ']'		{GInstall($<Node>1->varname, curr_type, NULL, $<Node>3->val, $<Node>6->val, _MATRIX, NULL);}
 	|MUL ID
-	|ID '(' ParamList ')'			{GInstall($<Node>1->varname, curr_type, 0, 0, _FUNC, Phead);Phead=NULL;}
+	|ID '(' ParamList ')'			{GInstall($<Node>1->varname, curr_type, NULL, 0, 0, _FUNC, Phead);Phead=NULL; Phead=NULL;}
 ;
 ClassDefBlock: CLASS ClassDefList ENDCLASS{
-	printClasstable();
-}
+		//printClasstable();
+		struct Classtable *Ctemp= Chead;
+		struct Memberfunclist *Mtemp;
+		fprintf(target_file,"L%d:\n", START_FUNC);
+		fprintf(target_file, "MOV SP, 4095\n");
+		
+		while(Ctemp!=NULL){
+			CURR_BINDING+=8;
+			Mtemp= Ctemp->Vfuncptr;
+			int f=0;
+			while(Mtemp!=NULL){
+				fprintf(target_file, "MOV R0, F%d\n", Mtemp->flabel);
+				fprintf(target_file, "PUSH R0\n");
+				f++;
+				Mtemp=Mtemp->next;
+			}
+			fprintf(target_file, "MOV R0, -1\n");
+			while(f<8){
+				fprintf(target_file, "PUSH R0\n");
+				f++;
+			}
+			Ctemp=Ctemp->next;
+		}
+	}
+	|	{fprintf(target_file, "L%d:\n", START_FUNC);}
 ;
 ClassDefList: ClassDefList ClassDef
 	| ClassDef
@@ -117,7 +141,7 @@ ClassDef: Cname '{' DECL Fieldlists MethodDecls ENDDECL MethodDefns '}' {
 	
 	cnt= 0;
 	while(Mtemp != NULL){
-		if(Mtemp->Funcposition = -1){
+		if(Mtemp->Funcposition == -1){
 			printf("Class member Function not defined %s.%s \n",Class->name, Mtemp->name);
 			exit(0);
 		}
@@ -185,7 +209,7 @@ Ftype: INT							{Ftype = TLookup("Integer");}
 		}
 	}
 ;
-Fdef: Ftype ID '(' ParamList ')' '{' LdeclBlock Body '}'	{funcdef(curr_type,Class,$<Node>2, Phead,$<Node>8);
+Fdef: Ftype ID '(' ParamList ')' '{' LdeclBlock Body '}'	{funcdef(Ftype,Class,$<Node>2, Phead,$<Node>8);
 														//print_local_declarations(Lhead);
 														Phead= NULL;
 														Lhead=NULL;
@@ -319,7 +343,7 @@ FieldFunction: ID '.' ID '(' ArgList ')' {
 		printf("no method called %s in class %s",$<Node>3->varname,Class->name);
 		exit(0);
 	}
-	$<Node>$= createTree(VAL_NONE,Mtemp->type,"\0",_METHOD3,$<Node>1,$<Node>3,$<Node>5);
+	$<Node>$= createTree(VAL_NONE,Mtemp->type,"\0",_METHOD1,$<Node>1,$<Node>3,$<Node>5);
 	}
 
 	| SELF '.' ID '(' ArgList ')' {
@@ -353,14 +377,18 @@ InputStmt: READ '(' ID ')'      		{$<Node>$= createTree(VAL_NONE, TLookup("void"
 OutputStmt: WRITE '(' E ')'     {$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _WRITE, $<Node>3,NULL,NULL);}
 ;
 
-AsgStmt: ID ASSIGN E            	{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _ASSIGN, $<Node>1,NULL,$<Node>3);}
-	| ID '[' E ']' ASSIGN E			{$<Node>$ = createTree(0, TLookup("void"), "\0", _ASGN_ARRAY,$<Node>1, $<Node>3, $<Node>6);}
-	| ID ASSIGN INITIALIZE '(' ')'	{$<Node>$ = createTree(0,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Integer"),"\0",_INIT,NULL,NULL,NULL));}
-	| ID ASSIGN ALLOC '(' ')'		{$<Node>$ = createTree(0,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
-	| Field ASSIGN E				{$<Node>$ = createTree(0,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL,$3);}
-	| Field ASSIGN ALLOC '(' ')'	{$<Node>$ = createTree(0,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
-	| FREE '(' ID ')'				{$<Node>$ = createTree(0,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
-	| FREE '(' Field ')'			{$<Node>$ = createTree(0,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
+AsgStmt: ID ASSIGN E            	{$<Node>$=  createTree(VAL_NONE, TLookup("void"), "\0", _ASSIGN, $<Node>1,NULL,$<Node>3);}
+	| ID '[' E ']' ASSIGN E			{$<Node>$ = createTree(VAL_NONE, TLookup("void"), "\0", _ASGN_ARRAY,$<Node>1, $<Node>3, $<Node>6);}
+	| ID ASSIGN INITIALIZE '(' ')'	{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Integer"),"\0",_INIT,NULL,NULL,NULL));}
+	| ID ASSIGN ALLOC '(' ')'		{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
+	| Field ASSIGN E				{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL,$3);}
+	| Field ASSIGN ALLOC '(' ')'	{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,NULL, createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
+	| FREE '(' ID ')'				{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
+	| FREE '(' Field ')'			{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
+	| ID ASSIGN NEW '(' ID ')'		{$<Node>$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN,$<Node>1,$<Node>5,createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
+	| Field ASSIGN NEW '(' ID ')'	{$$ = createTree(VAL_NONE,TLookup("void"),"\0",_ASSIGN_FIELD,$<Node>1,$<Node>5,createTree(VAL_NONE,TLookup("Type"),"\0",_ALLOC,NULL,NULL,NULL));}
+	| DELETE '(' Field ')'			{$$ = createTree(VAL_NONE,TLookup("void"),"\0",_FREE,$<Node>3,NULL,NULL);}
+;
 ;
 
 Ifstmt: IF '(' E ')' THEN Slist ELSE Slist ENDIF    {$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _IF_THEN_ELSE, $<Node>3,$<Node>6,$<Node>8);}
@@ -382,6 +410,7 @@ Returnstmt: RETURN E ';'							{$<Node>$= createTree(VAL_NONE, TLookup("void"), 
 
 ArgList: ArgList ',' E								{$<Node>$= createTree(VAL_NONE,TLookup("void"), "\0", _ARG,  $<Node>1, NULL, $<Node>3);}
 	| E												{$<Node>$= createTree(VAL_NONE, TLookup("void"), "\0", _ARG, NULL, NULL, $<Node>1);}
+	|												{$<Node>$=NULL;}
 ;
 
 E 	: E PLUS E 		{$<Node>$ = createTree(VAL_NONE, TLookup("Integer"), "\0", _PLUS, $<Node>1, NULL, $<Node>3);}
@@ -396,13 +425,14 @@ E 	: E PLUS E 		{$<Node>$ = createTree(VAL_NONE, TLookup("Integer"), "\0", _PLUS
 	| E LT E 		{$<Node>$ = createTree(VAL_NONE, TLookup("Boolean"), "\0", _LT, $<Node>1, NULL, $<Node>3);}
 	| E GT E  		{$<Node>$ = createTree(VAL_NONE, TLookup("Boolean"), "\0", _GT, $<Node>1, NULL, $<Node>3);}
 	| NUM 			{$<Node>$ = $<Node>1;}
-	| STRING		{$<Node>$ = $<Node>1;}		
+	| STRING		{$<Node>$ = $<Node>1;}	
+	| NIL 			{$<Node>$ = createTree(VAL_NONE,TLookup("Type"), "\0", _NULL, NULL, NULL, NULL);}	
+	| Field			{$<Node>$ = $<Node>1;}
+	| FieldFunction {$<Node>$ = $<Node>1;}
 	| ID			{$<Node>$ = $<Node>1;}
 	| ID '[' E ']'	{$<Node>$ = createTree(VAL_NONE, $<Node>1->type, $<Node>1->varname, _ARRAY, $<Node>1, $<Node>3, NULL);}
 	| ID '(' ArgList ')' {$<Node>$= createTree(VAL_NONE, $<Node>1->type, $<Node>1->varname, _FUNC, $<Node>1, NULL, $<Node>3);}
-	| NIL 			{$<Node>$ = createTree(VAL_NONE,TLookup("Type"), "\0", _NULL, NULL, NULL, NULL);}
-	| Field			{$<Node>$ = $<Node>1;}
-	| FieldFunction  {$<Node>$ = $<Node>1;}
+
 ;
 
 %%
@@ -416,11 +446,11 @@ int main(int argc, char *argv[])
 	FILE *fp = fopen(argv[1],"r");
 	if(fp)
 		yyin=fp;
+	START_FUNC=get_label();
 	target_file=fopen("target.xsm","w");	
 	fprintf(target_file, "0\n2056\n0\n0\n0\n0\n0\n0\n");
-	fprintf(target_file, "JMP L%d\n", LABEL_COUNT);
+	fprintf(target_file, "JMP L%d\n", START_FUNC);
 	TypeTableCreate();
-	
 	yyparse();
 	return 0;
 }
