@@ -59,19 +59,22 @@ int codeGen(struct tnode* t){
         case _FIELD:
             x= get_register();
             //check if its a has self type.
+            //increment for all the parameters of the call
             if(strcmp(t->varname,"\0")!=0){
                 z=3;
-                Ptemp=Phead;
+                Ptemp=Phead; 
                 while(Ptemp!=NULL){
                     z++;
                     Ptemp=Ptemp->next;
                 }
+                //adding relatiive binding w.r.t to BP pointer.
                 fprintf(target_file, "MOV R%d, BP\n", x);
-				fprintf(target_file, "SUB R%d, %d\n", x, z+1);
-				fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
+				fprintf(target_file, "SUB R%d, %d\n", x, z+1);  //address of the self object is stored behind BP as a parameter
+				fprintf(target_file, "MOV R%d, [R%d]\n", x, x); //now register RX stores the address of Self.
 
                 //get self class.
                 Ctemp=Clookup(t->varname);
+                //find the member field of class called
                 Ftemp=Ctemp->Memberfield;
                 z=0;
                 while(strcmp(Ftemp->name, t->left->varname)){
