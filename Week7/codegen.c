@@ -219,7 +219,7 @@ int codeGen(struct tnode* t){
             reg1= get_register();
             fprintf(target_file, "PUSH R%d\n",reg1); //empty register for return value
             fprintf(target_file, "CALL F%d\n",Gtemp->flabel); //call the function label
-            fprintf(target_file,"POP R%d\n",reg1);  //pop out the return value
+            fprintf(target_file,"POP R%d\n",reg1);  //pop out the return value-- reduce SP by 1 doesnt change the value at this address yet.
             free_register();
 
             /*popping out parameters after call */
@@ -239,12 +239,12 @@ int codeGen(struct tnode* t){
                 fprintf(target_file, "POP R%d\n",y);
                 z++;
             }
-
+            //z= no of arguments + no of registers pushed before fcn call.
             reg1= get_register();
             fprintf(target_file, "MOV R%d, SP\n", reg1);
-            fprintf(target_file, "ADD R%d, %d\n",reg1, z+1); //address of the returned value
+            fprintf(target_file, "ADD R%d, %d\n",reg1, z+1); //address of the returned (no of registers pushed + no of arguments + 1)
             fprintf(target_file,"MOV R%d, [R%d]\n", reg1, reg1);
-            return reg1;
+            return reg1; //return the return value of the function call.
         
         case _ARG:
             if(t!= NULL){
@@ -263,18 +263,18 @@ int codeGen(struct tnode* t){
             
             l= codeGen(t->left); //return value;
             reg1= get_register();
-            fprintf(target_file, "MOV R%d, BP\n",reg1 );
-			fprintf(target_file, "SUB R%d, 2\n",reg1 ); //address of return space
+            fprintf(target_file, "MOV R%d, BP\n",reg1 ); //move the current fucntion base pointer value to register
+			fprintf(target_file, "SUB R%d, 2\n",reg1 ); //address of return space is 2 spaces below the base address
 			fprintf(target_file, "MOV [R%d], R%d\n",reg1, l ); //Put return value in return space
 			free_register();
 			free_register();
 			fprintf(target_file,"SUB SP, %d\n",l_varcount);	// Pop Local Variables
 			fprintf(target_file,"MOV BP,[SP]\n"); //make the base pointer point to caller base
-			fprintf(target_file,"POP R0\n");
+			fprintf(target_file,"POP R0\n"); //pop the base address
 			fprintf(target_file,"RET\n");
 			break;
 
-        case _METHOD1:// ID.func()
+        case _METHOD1:// ID.func() call.
             Gtemp= GLookup(t->left->varname);
             if(Gtemp==NULL){
                 printf("object %s is not declared\n",t->left->varname);
@@ -288,7 +288,7 @@ int codeGen(struct tnode* t){
                     break;
                 Mtemp=Mtemp->next;
             }
-            Ptemp= Mtemp->paramlist; //parameter in class definintion
+            Ptemp= Mtemp->paramlist; //parameters in class definintion
             p=t->right; //given parameters.
 
             x=y=0;
@@ -329,26 +329,32 @@ int codeGen(struct tnode* t){
 				fprintf(target_file, "PUSH R%d\n",y+1);
 
             REG_COUNT =-1;
-            //push the binding 
+    
             x=get_register();
-			fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding);
+            //push pointer to the location of self obect.
+			fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding);   
 			fprintf(target_file,"PUSH R%d\n",x);
+
+            //push pointer to the location on stack of the object virtual fucntion table
 			fprintf(target_file,"MOV R%d, [%d]\n",x,Gtemp->binding+1);
 			fprintf(target_file,"PUSH R%d\n",x);
+
 			free_register();
             //push the arguments
 			x=codeGen(t->right);												
 			x=get_register();
+
             //push return value register
 			fprintf(target_file, "PUSH R%d\n", x);
-            //calling the function			
+
+            //calling the function ( fucntion position =  pointer to virtual table + offset of method for the class)		
 			fprintf(target_file, "MOV R%d, [%d]\n", x, Gtemp->binding+1);
 			fprintf(target_file, "ADD R%d, %d\n", x, Mtemp->Funcposition);
 			fprintf(target_file, "MOV R%d, [R%d]\n", x, x);
 			fprintf(target_file, "CALL R%d\n", x);
+
             //pop return value
 			fprintf(target_file,"POP R%d\n",x);				
-
 			free_register();
 
 			z=0;
@@ -368,9 +374,10 @@ int codeGen(struct tnode* t){
 			REG_COUNT=y;
             //Pop Registers
 			for(;y>=0;y--){
-				fprintf(target_file, "POP R%d\n", y);			//Pop Registers
+				fprintf(target_file, "POP R%d\n", y);			
 				z++;
 			}
+            //z= no of arguments + no of registers pushed before fcn call.
 			x=get_register();
 			fprintf(target_file, "MOV R%d, SP\n",x);
 			fprintf(target_file,"ADD R%d, %d\n",x,z+1);
@@ -378,7 +385,9 @@ int codeGen(struct tnode* t){
 
 			return x;
         
-        case _METHOD2: //self.func()
+        case _METHOD2: //self.func() call.
+
+            //check if the self class is installed.
             Ctemp= Clookup(t->varname);
             if(Ctemp == NULL){
                 printf("class not found %s _ codegen METHOD2\n",t->varname);
@@ -386,13 +395,15 @@ int codeGen(struct tnode* t){
             }
             Mtemp= Ctemp->Vfuncptr;
             b=0;
-            //find the given func from class def
+
+            //find the given method form the class definition.
             while(Mtemp!=NULL){
                 if(strcmp(Mtemp->name,t->left->varname)==0)
                     break;
                 Mtemp= Mtemp->next;
                 b++;
             }
+            //check for equivalence of parameters.
             Ptemp= Mtemp->paramlist;
             p= t->right;
             x=y=0;
@@ -404,7 +415,7 @@ int codeGen(struct tnode* t){
                 y++;
                 p=p->left;
             }
-            //checks for parameter # and types like before
+            //equivalence of no :of parameters.
             if(x!=y){
                 printf("Incorrect No of Arguments for Function _method2 %s\n",t->varname);
 				exit(0);
@@ -437,10 +448,12 @@ int codeGen(struct tnode* t){
 
             x=get_register();
 			z=get_register();
-			fprintf(target_file,"MOV R%d, BP\n",x);
-			fprintf(target_file,"SUB R%d, %d\n",x,c+4);
+            //c is the no of arguments for the function call.
+			fprintf(target_file,"MOV R%d, BP\n",x); // move BP of current function (this function is a member of the class)
+			fprintf(target_file,"SUB R%d, %d\n",x,c+4); //find the address of the object. |BP, return_addr, return_val, [args ...], self_fucnptr, self_object|
 			fprintf(target_file,"MOV R%d, [R%d]\n",z,x);
-			fprintf(target_file,"PUSH R%d\n",z);
+            //address of the object is pushed as the first argument
+			fprintf(target_file,"PUSH R%d\n",z);   
 			fprintf(target_file,"ADD R%d, 1\n",x);
 			fprintf(target_file,"MOV R%d, [R%d]\n",z,x);
 			fprintf(target_file,"PUSH R%d\n",z);

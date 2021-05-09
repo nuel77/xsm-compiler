@@ -68,7 +68,7 @@
 	#include <stdlib.h>
 	#include <ctype.h>
 	#include <string.h>
-	int yyerror(char const *); 
+	int yyerror(char const *);   
 	extern FILE* yyin;
 	#include "codegen.c"
 	int yylex(void);
@@ -1641,7 +1641,7 @@ yyreduce:
   case 18:
 #line 59 "yacc.y" /* yacc.c:1646  */
     {
-									
+							
 									initialxsmcode();
 									Phead=NULL;
 									Lhead=NULL;
@@ -1712,7 +1712,7 @@ yyreduce:
   case 33:
 #line 99 "yacc.y" /* yacc.c:1646  */
     {
-		//printClasstable();
+		// printClasstable();
 		struct Classtable *Ctemp= Chead;
 		struct Memberfunclist *Mtemp;
 		//store all methods of the class into the start of stack

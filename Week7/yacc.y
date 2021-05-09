@@ -57,7 +57,7 @@ TypeName: INT		{Ttype = TLookup("Integer");}
 	|ID 			{Ttype = TLookup($<Node>1->varname);}
 ;
 GdeclBlock: DECL GDecllist ENDDECL  {
-									
+							
 									initialxsmcode();
 									Phead=NULL;
 									Lhead=NULL;
@@ -97,7 +97,7 @@ Gid: ID								{GInstall($<Node>1->varname, curr_type, Ctype, 1, 1, _ID, NULL);}
 	|ID '(' ParamList ')'			{GInstall($<Node>1->varname, curr_type, NULL, 0, 0, _FUNC, Phead);Phead=NULL; Phead=NULL;}
 ;
 ClassDefBlock: CLASS ClassDefList ENDCLASS{
-		//printClasstable();
+		// printClasstable();
 		struct Classtable *Ctemp= Chead;
 		struct Memberfunclist *Mtemp;
 		//store all methods of the class into the start of stack

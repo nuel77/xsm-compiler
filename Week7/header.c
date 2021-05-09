@@ -494,10 +494,10 @@ void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *fun
     struct Gsymbol *Gtemp;
     struct Paramstruct *Pdef, *Pdecl;
     struct Memberfunclist *Mtemp;
+    //check if this function belongs to a class.
     if(Ctype!= NULL){
-       // printf("func def enocutnered\n");
         Mtemp= Ctype->Vfuncptr;
-        //check for equivalence bw paramerters of def and decl.
+        //check for equivalence bw paramerters of definintion and declaration of the member function.
         while(Mtemp!=NULL){
             if(!strcmp(func->varname,Mtemp->name)){
                 Pdef= Phead;
@@ -513,16 +513,18 @@ void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *fun
             }
             Mtemp= Mtemp->next;
         }
-
+        //if above loop run completely then the memeber fucntion is not declared 
         if(Mtemp ==NULL){
             printf("method not declared %s \n",func->varname);
             exit(0);
         }
         Mtemp->Funcposition=0;
         fprintf(target_file, "F%d:\n", Mtemp->flabel);
-		fprintf(target_file, "PUSH BP\n");
+        //1) saves the BP value of caller to the stack and sets BP to the current top of the stack.
+		fprintf(target_file, "PUSH BP\n"); 
 		fprintf(target_file, "MOV BP, SP\n");
-
+         
+        //2) allocates space for local variables
         int lVarCount=0;
         for(Ltemp=Lhead; Ltemp!=NULL; Ltemp= Ltemp->next)
             lVarCount++;
@@ -549,9 +551,11 @@ void funcdef(struct Typetable *type, struct Classtable *Ctype, struct tnode *fun
             exit(0);
         }
         fprintf(target_file,"F%d:\n",Gtemp->flabel);
-        fprintf(target_file,"PUSH BP\n");
-        fprintf(target_file,"MOV BP, SP\n");
+        //1) saves the BP value of caller to the stack and sets BP to the current top of the stack.
+        fprintf(target_file,"PUSH BP\n");       
+        fprintf(target_file,"MOV BP, SP\n");   
 
+        //2) allocates space for local variables
         int lVarCount=0;
         for(Ltemp= Lhead; Ltemp!=NULL; Ltemp=Ltemp->next)
             lVarCount++;
@@ -594,6 +598,21 @@ void printClasstable(){
 		Ctemp = Ctemp->next;
     }
     
+}
+void printGsymbolTable(){
+    struct Gsymbol *temp=Ghead;
+    while(temp!=NULL){
+        printf("---------------------------\n");
+        printf("name is : %s\n", temp->name);
+        if(temp->type!=NULL)
+            printf("type of symbol %s \n", temp->type->name);
+        if(temp->Ctype!=NULL)
+            printf("class type of symbol %s\n", temp->Ctype->name);
+        printf("size1 : %d \n",temp->size1);
+        printf("size2: %d\n",temp->size2);
+        printf("---------------------------\n");
+        temp=temp->next;
+    }
 }
 
 void printField2(struct Classtable *Ctype)
