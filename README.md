@@ -5,7 +5,7 @@ Roadmap: http://silcnitc.github.io/roadmap.html
 Specification of the Language(Expl): http://silcnitc.github.io/expl.html
 Specification of the Object Oriented Counterpart(OExpl): http://silcnitc.github.io/oexpl-specification.html
 
-Instructions to compile and run the Input Program:
+# Instructions to compile and run the Input Program:
 
 Clone the repository into your local Machine.
 
