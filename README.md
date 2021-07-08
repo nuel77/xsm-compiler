@@ -15,3 +15,13 @@ To run the program, Go to Week8/ and run:
 ```
 ./run.sh
 ```
+Enter the code for the program, then run
+```
+./trans.sh
+```
+the compiler binary will now be formed with the name "translated.xsm". Copy this file to /xsm_expl/ (replace if file already present).
+finally run
+```
+run.sh
+```
+inside /xsm_expl/
